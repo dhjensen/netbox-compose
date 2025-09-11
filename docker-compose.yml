@@ -17,7 +17,7 @@ services:
     env_file:
       - netbox.env
     ports:
-      - "127.0.0.1:8001:8080"
+      - "127.0.0.1:8002:8080"
     networks:
       - nginx-proxy-manager_frontend
       - backend
@@ -37,7 +37,7 @@ services:
       netbox:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8002:8080"
+      - "127.0.0.1:8003:8080"
     command:
       - /opt/netbox/venv/bin/python
       - /opt/netbox/netbox/manage.py
