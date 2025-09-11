@@ -1,0 +1,127 @@
+name: Netbox
+
+services:
+  netbox: &netbox
+    image: netboxcommunity/netbox:v${NETBOX_VERSION}
+    container_name: netbox
+    depends_on:
+      - postgres
+      - redis
+      - redis-cache
+    volumes:
+      - netbox-configuration:/etc/netbox/config:ro
+      - netbox-media-files:/opt/netbox/netbox/media:rw
+      - netbox-reports-files:/opt/netbox/netbox/reports:rw
+      - netbox-scripts-files:/opt/netbox/netbox/scripts:rw
+      - /etc/timezone:/etc/timezone:ro
+    env_file:
+      - netbox.env
+    ports:
+      - "127.0.0.1:8001:8080"
+    networks:
+      - nginx-proxy-manager_frontend
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: curl -f http://localhost:8080/login/ || exit 1
+      start_period: 90s
+      timeout: 3s
+      interval: 15s
+    labels:
+      - wud.tag.include=^v\d+\.\d+\.\d+-\d+\.\d+\.\d+$$
+
+  netbox-worker:
+    <<: *netbox
+    container_name: netbox-worker
+    depends_on:
+      netbox:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8002:8080"
+    command:
+      - /opt/netbox/venv/bin/python
+      - /opt/netbox/netbox/manage.py
+      - rqworker
+    healthcheck:
+      test: ps -aux | grep -v grep | grep -q rqworker || exit 1
+      start_period: 20s
+      timeout: 3s
+      interval: 15s
+
+  # postgres
+  postgres:
+    image: postgres:${POSTGRES_VERSION}-alpine
+    container_name: postgres
+    volumes:
+      - netbox-postgres-data:/var/lib/postgresql/data
+      - /etc/timezone:/etc/timezone:ro
+    env_file: postgres.env
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -q -t 2 -d $$POSTGRES_DB -U $$POSTGRES_USER
+      start_period: 20s
+      timeout: 30s
+      interval: 10s
+      retries: 5
+    labels:
+      - wud.tag.include=^\d+\.\d+-alpine$$
+
+  # redis
+  redis:
+    image: valkey/valkey:${REDIS_VERSION}-alpine
+    container_name: redis
+    volumes:
+      - netbox-redis-data:/data
+      - /etc/timezone:/etc/timezone
+    env_file: redis.env
+    networks:
+      - backend
+    command:
+      - sh
+      - -c # this is to evaluate the $REDIS_PASSWORD from the env
+      - valkey-server --appendonly yes --requirepass $$REDIS_PASSWORD ## $$ because of docker-compose
+    restart: unless-stopped
+    healthcheck: &redis-healthcheck
+      test: '[ $$(valkey-cli --pass "$${REDIS_PASSWORD}" ping) = ''PONG'' ]'
+      start_period: 5s
+      timeout: 3s
+      interval: 1s
+      retries: 5
+    labels:
+      - wud.tag.include=^\d+\.\d+.\d+-alpine$$
+
+  redis-cache:
+    image: valkey/valkey:${REDIS_VERSION}-alpine
+    container_name: redis-cache
+    volumes:
+      - netbox-redis-cache-data:/data
+      - /etc/timezone:/etc/timezone:ro
+    env_file: redis-cache.env
+    networks:
+      - backend
+    command:
+      - sh
+      - -c # this is to evaluate the $REDIS_PASSWORD from the env
+      - valkey-server --requirepass $$REDIS_PASSWORD ## $$ because of docker-compose
+    restart: unless-stopped
+    healthcheck: *redis-healthcheck
+    labels:
+      - wud.tag.include=^\d+\.\d+.\d+-alpine$$
+
+networks:
+  nginx-proxy-manager_frontend:
+    driver: brigde
+    external: true
+  backend:
+    driver: bridge
+
+volumes:
+  netbox-media-files:
+  netbox-postgres-data:
+  netbox-redis-cache-data:
+  netbox-redis-data:
+  netbox-reports-files:
+  netbox-scripts-files:
+  netbox-configuration:
