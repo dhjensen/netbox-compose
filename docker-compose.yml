@@ -20,7 +20,6 @@ services:
       - "127.0.0.1:8002:8080"
     networks:
       - backend
-      - nginx-proxy-manager_frontend
       - netbox-backend
     restart: unless-stopped
     healthcheck:
@@ -73,7 +72,8 @@ services:
       interval: 10s
       retries: 5
     labels:
-      - wud.tag.include=^\d+\.\d+-alpine$$
+      # Staying on version 17.x untill 18 is supported by Netbox.
+      - wud.tag.include=^17\.\d+-alpine$$
       - traefik.enable=false
 
   # redis
@@ -121,9 +121,6 @@ services:
       - treafik.enable.false
 
 networks:
-  nginx-proxy-manager_frontend:
-    driver: brigde
-    external: true
   netbox-backend:
     driver: bridge
   backend:
