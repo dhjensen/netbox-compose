@@ -57,9 +57,9 @@ services:
   # postgres
   postgres:
     image: postgres:${POSTGRES_VERSION}-alpine
-    container_name: postgres
+    container_name: netbox-postgres
     volumes:
-      - netbox-postgres-data:/var/lib/postgresql/data
+      - netbox-postgres-data:/var/lib/postgresql
       - /etc/timezone:/etc/timezone:ro
     env_file: postgres.env
     networks:
@@ -72,8 +72,7 @@ services:
       interval: 10s
       retries: 5
     labels:
-      # Staying on version 17.x untill 18 is supported by Netbox.
-      - wud.tag.include=^17\.\d+-alpine$$
+      - wud.tag.include=^18\.\d+-alpine$$
       - traefik.enable=false
 
   # redis
