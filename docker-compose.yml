@@ -59,7 +59,7 @@ services:
     image: postgres:${POSTGRES_VERSION}-alpine
     container_name: netbox-postgres
     volumes:
-      - netbox-postgres-data:/var/lib/postgresql/data
+      - netbox-postgres-data:/var/lib/postgresql
       - /etc/timezone:/etc/timezone:ro
     env_file: postgres.env
     networks:
